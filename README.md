@@ -1,4 +1,8 @@
-## golang in-memory cache
+# go-cache
+
+`go get -u github.com/1makarov/go-cache`
+
+###Example
 
 ```go
 package main
