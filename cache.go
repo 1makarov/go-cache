@@ -68,9 +68,17 @@ func (c *cache) Delete(k string) {
 }
 
 func (c *cache) Get(k string) (interface{}, error) {
-	v := c.s[k]
-	if v == nil {
+	v, ok := c.s[k]
+	if !ok {
 		return nil, fmt.Errorf(errValueEmpty)
 	}
 	return v, nil
+}
+
+func (c *cache) Close() {
+	close(c.ch)
+
+	c.h.close()
+
+	c.s = make(map[string]interface{})
 }

@@ -10,6 +10,8 @@ type handler struct {
 
 	expire map[string]time.Time
 
+	cls bool
+
 	m sync.Mutex
 }
 
@@ -25,6 +27,11 @@ func initHandler(c chan string) *handler {
 
 func (h *handler) run() {
 	for {
+
+		if h.cls {
+			return
+		}
+
 		t := time.Now()
 
 		for k, v := range h.expire {
@@ -51,4 +58,10 @@ func (h *handler) delete(k string) {
 
 func (h *handler) send(k string) {
 	h.ch <- k
+}
+
+func (h *handler) close() {
+	h.cls = true
+
+	h.expire = make(map[string]time.Time)
 }

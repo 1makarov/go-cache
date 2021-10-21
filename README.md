@@ -14,6 +14,7 @@ import (
 
 func main() {
 	c := cache.New()
+	defer c.Close()
 
 	if err := c.SetWithExpire("userId", 42, time.Second*5); err != nil {
 		log.Fatal(err)
