@@ -7,20 +7,29 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"time"
 	"github.com/1makarov/go-cache/cache"
 )
 
 func main() {
 	c := cache.New()
 
-	c.Set("userId", 42)
-	userId := c.Get("userId")
+	if err := c.SetWithExpire("userId", 42, time.Second*5); err != nil {
+		log.Fatal(err)
+	}
 
-	fmt.Println(userId)
+	userId, err := c.Get("userId")
+	if err != nil { // err == nil
+		log.Fatal(err)
+	}
+	fmt.Println(userId) // Output: 42
 
-	c.Delete("userId")
-	userId = c.Get("userId")
+	time.Sleep(time.Second * 6) // прошло 5 секунд 
 
-	fmt.Println(userId)
+	userId, err = c.Get("userId")
+	if err != nil { // err != nil
+		log.Fatal(err) // сработает этот код
+	}
 }
 ```

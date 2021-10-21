@@ -1,32 +1,76 @@
 package cache
 
-import "sync"
+import (
+	"fmt"
+	"sync"
+	"time"
+)
 
-type Cache struct {
-	storage map[string]interface{}
+const (
+	errKeyBusy    = "key is busy"
+	errValueEmpty = "value empty"
+)
 
-	s sync.Mutex
+type cache struct {
+	s map[string]interface{}
+
+	h *handler
+
+	ch chan string
+
+	m sync.Mutex
 }
 
-func New() *Cache {
+func New() *cache {
 	s := make(map[string]interface{})
-	return &Cache{storage: s}
+	ch := make(chan string)
+	h := initHandler(ch)
+
+	c := &cache{s: s, h: h, ch: ch}
+	go c.run()
+
+	return c
 }
 
-func (c *Cache) Set(k string, v interface{}) {
-	c.s.Lock()
-	c.storage[k] = v
-	c.s.Unlock()
-	return
+func (c *cache) run() {
+	for k := range c.ch {
+		c.Delete(k)
+	}
 }
 
-func (c *Cache) Delete(k string) {
-	c.s.Lock()
-	delete(c.storage, k)
-	c.s.Unlock()
-	return
+func (c *cache) Set(k string, v interface{}) error {
+	c.m.Lock()
+	defer c.m.Unlock()
+	_, ok := c.s[k]
+	if ok {
+		return fmt.Errorf(errKeyBusy)
+	}
+	c.s[k] = v
+
+	return nil
 }
 
-func (c *Cache) Get(k string) interface{} {
-	return c.storage[k]
+func (c *cache) SetWithExpire(k string, v interface{}, ttl time.Duration) error {
+	t := time.Now().Add(ttl)
+
+	if err := c.Set(k, v); err != nil {
+		return err
+	}
+	c.h.add(k, t)
+
+	return nil
+}
+
+func (c *cache) Delete(k string) {
+	c.m.Lock()
+	delete(c.s, k)
+	c.m.Unlock()
+}
+
+func (c *cache) Get(k string) (interface{}, error) {
+	v := c.s[k]
+	if v == nil {
+		return nil, fmt.Errorf(errValueEmpty)
+	}
+	return v, nil
 }
