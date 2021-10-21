@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"log"
 	"time"
-	"github.com/1makarov/go-cache/cache"
+	"github.com/1makarov/go-cache"
 )
 
 func main() {
