@@ -26,7 +26,7 @@ func main() {
 	}
 	fmt.Println(userId) // Output: 42
 
-	time.Sleep(time.Second * 6) // прошло 5 секунд 
+	time.Sleep(time.Second * 6) // прошло 6 секунд 
 
 	userId, err = c.Get("userId")
 	if err != nil { // err != nil
