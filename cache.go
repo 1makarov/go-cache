@@ -11,7 +11,7 @@ const (
 	errValueEmpty = "value empty"
 )
 
-type cache struct {
+type Cache struct {
 	s map[string]interface{}
 
 	h *handler
@@ -21,24 +21,24 @@ type cache struct {
 	m sync.Mutex
 }
 
-func New() *cache {
+func New() *Cache {
 	s := make(map[string]interface{})
 	ch := make(chan string)
 	h := initHandler(ch)
 
-	c := &cache{s: s, h: h, ch: ch}
+	c := &Cache{s: s, h: h, ch: ch}
 	go c.run()
 
 	return c
 }
 
-func (c *cache) run() {
+func (c *Cache) run() {
 	for k := range c.ch {
 		c.Delete(k)
 	}
 }
 
-func (c *cache) Set(k string, v interface{}) error {
+func (c *Cache) Set(k string, v interface{}) error {
 	c.m.Lock()
 	defer c.m.Unlock()
 	_, ok := c.s[k]
@@ -50,7 +50,7 @@ func (c *cache) Set(k string, v interface{}) error {
 	return nil
 }
 
-func (c *cache) SetWithExpire(k string, v interface{}, ttl time.Duration) error {
+func (c *Cache) SetWithExpire(k string, v interface{}, ttl time.Duration) error {
 	t := time.Now().Add(ttl)
 
 	if err := c.Set(k, v); err != nil {
@@ -61,13 +61,13 @@ func (c *cache) SetWithExpire(k string, v interface{}, ttl time.Duration) error 
 	return nil
 }
 
-func (c *cache) Delete(k string) {
+func (c *Cache) Delete(k string) {
 	c.m.Lock()
 	delete(c.s, k)
 	c.m.Unlock()
 }
 
-func (c *cache) Get(k string) (interface{}, error) {
+func (c *Cache) Get(k string) (interface{}, error) {
 	v, ok := c.s[k]
 	if !ok {
 		return nil, fmt.Errorf(errValueEmpty)
@@ -75,7 +75,7 @@ func (c *cache) Get(k string) (interface{}, error) {
 	return v, nil
 }
 
-func (c *cache) Close() {
+func (c *Cache) Close() {
 	close(c.ch)
 
 	c.h.close()
