@@ -6,79 +6,103 @@ import (
 	"time"
 )
 
-const (
-	errKeyBusy    = "key is busy"
-	errValueEmpty = "value empty"
-)
-
 type Cache struct {
-	s map[string]interface{}
+	tick *time.Ticker
 
-	h *handler
+	close bool
 
-	ch chan string
-
-	m sync.Mutex
+	values sync.Map
 }
 
-func New() *Cache {
-	s := make(map[string]interface{})
-	ch := make(chan string)
-	h := initHandler(ch)
+const (
+	minInterval = time.Nanosecond
 
-	c := &Cache{s: s, h: h, ch: ch}
-	go c.run()
+	errEmptyValue  = "empty value"
+	errKeyIsBusy   = "key is busy"
+	errKeyNotFound = "key not found"
+)
+
+func New() *Cache {
+	return NewWithInterval(minInterval)
+}
+func NewWithInterval(interval time.Duration) *Cache {
+	c := &Cache{
+		tick: time.NewTicker(interval),
+	}
+
+	go c.waiter()
 
 	return c
 }
 
-func (c *Cache) run() {
-	for k := range c.ch {
-		c.Delete(k)
-	}
-}
-
-func (c *Cache) Set(k string, v interface{}) error {
-	c.m.Lock()
-	defer c.m.Unlock()
-	_, ok := c.s[k]
-	if ok {
-		return fmt.Errorf(errKeyBusy)
-	}
-	c.s[k] = v
-
-	return nil
-}
-
-func (c *Cache) SetWithExpire(k string, v interface{}, ttl time.Duration) error {
-	t := time.Now().Add(ttl)
-
-	if err := c.Set(k, v); err != nil {
-		return err
-	}
-	c.h.add(k, t)
-
-	return nil
-}
-
-func (c *Cache) Delete(k string) {
-	c.m.Lock()
-	delete(c.s, k)
-	c.m.Unlock()
-}
-
-func (c *Cache) Get(k string) (interface{}, error) {
-	v, ok := c.s[k]
-	if !ok {
-		return nil, fmt.Errorf(errValueEmpty)
-	}
-	return v, nil
-}
-
 func (c *Cache) Close() {
-	close(c.ch)
+	c.close = true
+}
 
-	c.h.close()
+func (c *Cache) ChangeInterval(interval time.Duration) {
+	c.tick.Reset(interval)
+}
 
-	c.s = make(map[string]interface{})
+func (c *Cache) waiter() {
+	defer c.tick.Stop()
+
+	for range c.tick.C {
+		if c.close {
+			return
+		}
+
+		go c.handler()
+	}
+}
+
+type value struct {
+	data    interface{}
+	expires int64
+}
+
+func (c *Cache) handler() {
+	now := time.Now().UnixNano()
+
+	c.values.Range(func(k, va interface{}) bool {
+		if now >= va.(value).expires {
+			c.values.Delete(k)
+		}
+
+		return true
+	})
+}
+
+func (c *Cache) Get(k interface{}) (interface{}, error) {
+	if v, ok := c.values.Load(k); ok {
+		return v.(value).data, nil
+	}
+	return nil, fmt.Errorf(errEmptyValue)
+}
+
+func (c *Cache) GetAndDelete(k interface{}) (interface{}, error) {
+	if v, ok := c.values.LoadAndDelete(k); ok {
+		return v.(value).data, nil
+	}
+	return nil, fmt.Errorf(errEmptyValue)
+}
+
+func (c *Cache) Set(k interface{}, v interface{}) error {
+	if _, ok := c.values.LoadOrStore(k, value{data: v}); !ok {
+		return nil
+	}
+	return fmt.Errorf(errKeyIsBusy)
+}
+
+func (c *Cache) SetWithDuration(k interface{}, v interface{}, d time.Duration) error {
+	if _, ok := c.values.LoadOrStore(k, value{data: v, expires: time.Now().Add(d).UnixNano()}); !ok {
+		return nil
+	}
+	return fmt.Errorf(errKeyIsBusy)
+}
+
+func (c *Cache) Delete(k interface{}) error {
+	if _, ok := c.values.LoadAndDelete(k); ok {
+		return nil
+	}
+	return fmt.Errorf(errKeyNotFound)
 }

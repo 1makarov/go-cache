@@ -16,9 +16,11 @@ func main() {
 	c := cache.New()
 	defer c.Close()
 
-	if err := c.SetWithExpire("userId", 42, time.Second*5); err != nil {
+	if err := c.SetWithTime("userId", 42, time.Second*5); err != nil {
 		log.Fatal(err)
 	}
+
+	c.ChangeInterval(time.Second * 1)
 
 	userId, err := c.Get("userId")
 	if err != nil { // err == nil
@@ -26,7 +28,7 @@ func main() {
 	}
 	fmt.Println(userId) // Output: 42
 
-	time.Sleep(time.Second * 6) // прошло 6 секунд 
+	time.Sleep(time.Second * 6) // прошло 6 секунд
 
 	userId, err = c.Get("userId")
 	if err != nil { // err != nil
