@@ -16,6 +16,7 @@ type Cache struct {
 
 const (
 	minInterval = time.Nanosecond
+	zero        = 0
 
 	errEmptyValue  = "empty value"
 	errKeyIsBusy   = "key is busy"
@@ -52,7 +53,7 @@ func (c *Cache) waiter() {
 			return
 		}
 
-		go c.handler()
+		c.handler()
 	}
 }
 
@@ -65,7 +66,9 @@ func (c *Cache) handler() {
 	now := time.Now().UnixNano()
 
 	c.values.Range(func(k, va interface{}) bool {
-		if now >= va.(value).expires {
+		v := va.(value)
+
+		if v.expires > zero && now >= v.expires {
 			c.values.Delete(k)
 		}
 
