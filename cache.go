@@ -25,6 +25,7 @@ const (
 func New() *Cache {
 	return NewWithInterval(minInterval)
 }
+
 func NewWithInterval(interval time.Duration) *Cache {
 	c := &Cache{
 		tick: time.NewTicker(interval),
