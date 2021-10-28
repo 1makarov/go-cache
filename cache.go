@@ -16,7 +16,6 @@ type Cache struct {
 
 const (
 	minInterval = time.Nanosecond
-	zero        = 0
 
 	errEmptyValue  = "empty value"
 	errKeyIsBusy   = "key is busy"
@@ -68,7 +67,7 @@ func (c *Cache) handler() {
 	c.values.Range(func(k, va interface{}) bool {
 		v := va.(value)
 
-		if v.expires > zero && now >= v.expires {
+		if v.expires > 0 && now >= v.expires {
 			c.values.Delete(k)
 		}
 
@@ -90,14 +89,14 @@ func (c *Cache) GetAndDelete(k interface{}) (interface{}, error) {
 	return nil, fmt.Errorf(errEmptyValue)
 }
 
-func (c *Cache) Set(k interface{}, v interface{}) error {
+func (c *Cache) Set(k, v interface{}) error {
 	if _, ok := c.values.LoadOrStore(k, value{data: v}); !ok {
 		return nil
 	}
 	return fmt.Errorf(errKeyIsBusy)
 }
 
-func (c *Cache) SetWithDuration(k interface{}, v interface{}, d time.Duration) error {
+func (c *Cache) SetWithDuration(k, v interface{}, d time.Duration) error {
 	if _, ok := c.values.LoadOrStore(k, value{data: v, expires: time.Now().Add(d).UnixNano()}); !ok {
 		return nil
 	}
