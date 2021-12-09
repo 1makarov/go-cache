@@ -15,15 +15,13 @@ type Cache struct {
 }
 
 const (
-	minInterval = time.Nanosecond
-
 	errEmptyValue  = "empty value"
 	errKeyIsBusy   = "key is busy"
 	errKeyNotFound = "key not found"
 )
 
 func New() *Cache {
-	return NewWithInterval(minInterval)
+	return &Cache{}
 }
 
 func NewWithInterval(interval time.Duration) *Cache {
